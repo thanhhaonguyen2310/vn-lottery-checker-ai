@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dò Vé Số Tự Động Enhanced</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>🎫 Dò Vé Số Tự Động</h1>
+            <p>Upload ảnh vé số hoặc nhập thủ công để kiểm tra kết quả</p>
+        </header>
+
+        <div class="upload-section">
+            <div class="upload-container">
+                <div class="sample-section">
+                    <h3>📖 Hướng dẫn chụp ảnh</h3>
+                    <div class="sample-image-container">
+                        <img src="{{ url_for('static', filename='photo.jpg') }}" alt="Ảnh mẫu vé số"
+                            class="sample-image">
+                    </div>
+                    <div class="instructions">
+                        <p>🔍 <strong>Chụp ảnh giống như mẫu trên:</strong></p>
+                        <ul>
+                            <li>✅ Chụp thẳng, không bị nghiêng</li>
+                            <li>✅ Đủ ánh sáng, không bị mờ</li>
+                            <li>✅ Toàn bộ vé số trong khung hình</li>
+                            <li>✅ Các con số rõ ràng, dễ đọc</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="upload-form-section">
+                    <h3>📤 Upload ảnh vé số</h3>
+                    <form id="uploadForm" enctype="multipart/form-data">
+                        <div class="file-input-wrapper">
+                            <input type="file" id="fileInput" name="file" accept="image/*" required>
+                            <label for="fileInput" class="file-label">
+                                <span class="file-icon">📁</span>
+                                <span class="file-text">Chọn ảnh vé số</span>
+                            </label>
+                        </div>
+                        <button type="submit" class="submit-btn" disabled>
+                            <span class="btn-text">Dò Vé Số</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="preview-section" id="previewSection" style="display: none;">
+            <h3>Ảnh đã upload:</h3>
+            <img id="previewImage" src="" alt="Preview">
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Đang xử lý ảnh...</p>
+        </div>
+
+        <div class="error-section" id="errorSection">
+            <span id="errorText"></span>
+        </div>
+
+        <div class="result-section" id="resultSection">
+            <div class="result-header">
+                <h2>Kết Quả Dò Vé</h2>
+                <button class="error-report-btn" id="errorReportBtn">
+                    ⚠️ Báo lỗi / Nhập thủ công
+                </button>
+            </div>
+
+            <!-- Manual Input Section -->
+            <div class="manual-input-section" id="manualInputSection">
+                <h3>🔧 Nhập thông tin chính xác:</h3>
+                <p style="margin-bottom: 15px; color: #856404;">
+                    Nếu AI nhận dạng sai, vui lòng nhập đúng thông tin vé số để kiểm tra lại:
+                </p>
+
+                <div class="input-group">
+                    <div class="input-field">
+                        <label for="manualNumbers">Số vé (6 chữ số):</label>
+                        <input type="text" id="manualNumbers" placeholder="VD: 123456" maxlength="6">
+                    </div>
+                    <div class="input-field">
+                        <label for="manualLotteryName">Tên đài:</label>
+                        <input type="text" id="manualLotteryName" placeholder="VD: Hồ Chí Minh">
+                    </div>
+                    <div class="input-field">
+                        <label for="manualDate">Ngày xổ (DD/MM/YYYY):</label>
+                        <input type="text" id="manualDate" placeholder="VD: 22/08/2024">
+                    </div>
+                </div>
+
+                <button class="manual-check-btn" id="manualCheckBtn">
+                    🔍 Dò lại với thông tin đúng
+                </button>
+            </div>
+
+            <!-- Ticket Info Display -->
+            <div class="ticket-info">
+                <h3>Thông tin vé số:</h3>
+                <div class="ticket-row">
+                    <strong>Số vé:</strong>
+                    <span id="ticketNumbers" class="ticket-number"></span>
+                </div>
+                <div class="ticket-row">
+                    <strong>Tên đài:</strong>
+                    <span id="lotteryName" class="ticket-name"></span>
+                </div>
+                <div class="ticket-row">
+                    <strong>Ngày xổ:</strong>
+                    <span id="lotteryDate" class="ticket-date"></span>
+                </div>
+            </div>
+
+            <!-- Prizes Section -->
+            <div class="prizes-section">
+                <h3>Kết quả từng giải:</h3>
+                <div id="prizesResult" class="prizes-container"></div>
+            </div>
+
+            <!-- Summary -->
+            <div id="summaryText" class="summary-text"></div>
+
+            <!-- Feedback Section -->
+            <div class="feedback-section" id="feedbackSection">
+                <p><strong>💡 Đánh giá độ chính xác:</strong></p>
+                <p>AI có nhận dạng đúng thông tin vé số không?</p>
+                <div class="feedback-buttons">
+                    <button class="feedback-btn feedback-correct" onclick="giveFeedback('correct')">
+                        ✅ Đúng hoàn toàn
+                    </button>
+                    <button class="feedback-btn feedback-incorrect" onclick="giveFeedback('incorrect')">
+                        ❌ Sai
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const submitBtn = document.querySelector('.submit-btn');
+        const uploadForm = document.getElementById('uploadForm');
+        const loading = document.getElementById('loading');
+        const resultSection = document.getElementById('resultSection');
+        const errorSection = document.getElementById('errorSection');
+        const errorReportBtn = document.getElementById('errorReportBtn');
+        const manualInputSection = document.getElementById('manualInputSection');
+        const manualCheckBtn = document.getElementById('manualCheckBtn');
+        const feedbackSection = document.getElementById('feedbackSection');
+
+        let currentResult = null;
+        let currentFilename = null;
+
+        fileInput.addEventListener('change', function () {
+            const file = this.files[0];
+            if (file) {
+                submitBtn.disabled = false;
+
+                // Hiển thị preview
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    document.getElementById('previewImage').src = e.target.result;
+                    document.getElementById('previewSection').style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            } else {
+                submitBtn.disabled = true;
+                document.getElementById('previewSection').style.display = 'none';
+            }
+        });
+
+        uploadForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            const formData = new FormData();
+            const file = fileInput.files[0];
+
+            if (!file) {
+                showError('Vui lòng chọn một file ảnh');
+                return;
+            }
+
+            formData.append('file', file);
+
+            showLoading(true);
+            hideError();
+            hideResults();
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    showLoading(false);
+
+                    if (data.error) {
+                        showError(data.error);
+                    } else {
+                        currentResult = data;
+                        currentFilename = data.filename;
+                        showResults(data);
+                    }
+                })
+                .catch(error => {
+                    showLoading(false);
+                    showError('Đã xảy ra lỗi khi xử lý file');
+                    console.error('Error:', error);
+                });
+        });
+
+        errorReportBtn.addEventListener('click', function () {
+            const isVisible = manualInputSection.style.display !== 'none';
+            manualInputSection.style.display = isVisible ? 'none' : 'block';
+
+            if (!isVisible && currentResult) {
+                // Pre-fill với dữ liệu AI để user sửa
+                const numbersInput = document.getElementById('manualNumbers');
+                const lotteryInput = document.getElementById('manualLotteryName');
+                const dateInput = document.getElementById('manualDate');
+
+                numbersInput.value = currentResult.ticket_numbers?.[0] || '';
+                lotteryInput.value = currentResult.lottery_name || '';
+                dateInput.value = currentResult.lottery_date || '';
+
+                // Lưu data AI gốc để dùng cho feedback
+                numbersInput.setAttribute('data-original-ai', currentResult.ticket_numbers?.[0] || '');
+                lotteryInput.setAttribute('data-original-ai', currentResult.lottery_name || '');
+                dateInput.setAttribute('data-original-ai', currentResult.lottery_date || '');
+
+                updateFeedbackForManualInput();
+            }
+        });
+
+        manualCheckBtn.addEventListener('click', function () {
+            const numbers = document.getElementById('manualNumbers').value.trim();
+            const lotteryName = document.getElementById('manualLotteryName').value.trim();
+            const date = document.getElementById('manualDate').value.trim();
+
+            if (!numbers || !lotteryName || !date) {
+                alert('Vui lòng điền đầy đủ thông tin');
+                return;
+            }
+
+            showLoading(true);
+
+            fetch('/manual_check', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    numbers: numbers,
+                    lottery_name: lotteryName,
+                    date: date,
+                    filename: currentFilename
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    showLoading(false);
+
+                    if (data.error) {
+                        showError(data.error);
+                    } else {
+                        currentResult = data;
+                        currentResult.source = 'manual_input';
+                        updateFeedbackForManualInput();
+                        showResults(data);
+                        manualInputSection.style.display = 'none';
+
+                        // Hiển thị feedback section
+                        feedbackSection.style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    showLoading(false);
+                    showError('Lỗi khi kiểm tra thủ công');
+                    console.error('Error:', error);
+                });
+        });
+
+        function showLoading(show) { 
+            loading.style.display = show ? 'block' : 'none';
+        }
+
+        function showError(message) {
+            document.getElementById('errorText').textContent = message;
+            errorSection.style.display = 'block';
+        }
+
+        function hideError() {
+            errorSection.style.display = 'none';
+        }
+
+        function hideResults() {
+            resultSection.style.display = 'none';
+            manualInputSection.style.display = 'none';
+            feedbackSection.style.display = 'none';
+            resetFeedbackSection();
+        }
+
+        function showResults(data) {
+            // Update ticket info
+            document.getElementById('ticketNumbers').textContent = data.ticket_numbers?.[0] || 'N/A';
+            document.getElementById('lotteryName').textContent = data.lottery_name || 'N/A';
+            document.getElementById('lotteryDate').textContent = data.lottery_date || 'N/A';
+
+            // Handle different result types
+            const prizesResult = document.getElementById('prizesResult');
+            const summaryText = document.getElementById('summaryText');
+
+            if (data.total_prizes === -1) {
+                prizesResult.innerHTML = '';
+                summaryText.innerHTML = '⏰ Vé số này đã quá hạn 30 ngày kể từ ngày xổ!';
+                summaryText.className = 'summary-text warning';
+            } else if (data.total_prizes === -3) {
+                prizesResult.innerHTML = '';
+                summaryText.innerHTML = '⏳ Vé số này chưa mở xổ, vui lòng thử lại sau (17h15 trong ngày xổ)!';
+                summaryText.className = 'summary-text info';
+            } else if (data.total_prizes === -2) {
+                prizesResult.innerHTML = '';
+                summaryText.innerHTML = '⚠️ Không thể nhận diện đủ thành phần tờ vé số, vui lòng upload lại ảnh đúng hướng dẫn!';
+                summaryText.className = 'summary-text warning';
+            } else if (data.error) {
+                prizesResult.innerHTML = '';
+                summaryText.innerHTML = `⚠️ ${data.error}`;
+                summaryText.className = 'summary-text warning';
+            } else {
+                // Show prize results
+                if (data.results && data.results.length > 0) {
+                    prizesResult.innerHTML = data.results.map(result => `
+                        <div class="prize-item">
+                            <div class="prize-header">
+                                <span class="prize-name">${result[1]}</span>
+                                <span class="prize-amount">🎉 Số: ${result[2]}</span>
+                            </div>
+                        </div>
+                    `).join('');
+
+                    summaryText.innerHTML = `🎉 Chúc mừng! Bạn đã trúng ${data.total_prizes} giải!`;
+                    summaryText.className = 'summary-text success';
+                } else {
+                    prizesResult.innerHTML = '<div class="prize-item"><div class="prize-header"><span class="prize-name">Không trúng giải nào</span></div></div>';
+                    summaryText.innerHTML = '😔 Rất tiếc, vé của bạn không trúng giải nào.';
+                    summaryText.className = 'summary-text info';
+                }
+            }
+
+            resultSection.style.display = 'block';
+
+            // Luôn hiển thị feedback section sau khi có kết quả AI (trừ trường hợp không nhận dạng được)
+            if (data.total_prizes !== -2) {
+                feedbackSection.style.display = 'block';
+            }
+        }
+
+        function updateFeedbackForManualInput() {
+            // Cập nhật nội dung feedback section cho manual input
+            feedbackSection.innerHTML = `
+                <p><strong>💡 Đánh giá độ chính xác:</strong></p>
+                <p>AI có nhận dạng đúng thông tin vé số không? (So với thông tin bạn vừa nhập)</p>
+                <div class="feedback-buttons">
+                    <button class="feedback-btn feedback-correct" onclick="giveFeedback('correct')">
+                        ✅ AI đúng hoàn toàn
+                    </button>
+                    <button class="feedback-btn feedback-incorrect" onclick="giveFeedback('incorrect')">
+                        ❌ AI sai (tôi đã sửa)
+                    </button>
+                </div>
+            `;
+            feedbackSection.style.display = 'block';
+        }
+
+        function resetFeedbackSection() {
+            feedbackSection.innerHTML = `
+                <p><strong>💡 Đánh giá độ chính xác:</strong></p>
+                <p>AI có nhận dạng đúng thông tin vé số không?</p>
+                <div class="feedback-buttons">
+                    <button class="feedback-btn feedback-correct" onclick="giveFeedback('correct')">
+                        ✅ Đúng hoàn toàn
+                    </button>
+                    <button class="feedback-btn feedback-incorrect" onclick="giveFeedback('incorrect')">
+                        ❌ Sai
+                    </button>
+                </div>
+            `;
+            feedbackSection.style.display = 'none';
+        }
+
+        function giveFeedback(type) {
+            if (!currentResult || !currentFilename) return;
+
+            // Dữ liệu hiện tại có phải từ manual_check không?
+            const isManualInput = currentResult.source === 'manual_input';
+
+            const payload = {
+                filename: currentFilename,
+                ai_numbers: isManualInput
+                    ? (document.getElementById('manualNumbers').getAttribute('data-original-ai') || null)
+                    : (currentResult.ticket_numbers?.[0] || null),
+                ai_lottery_name: isManualInput
+                    ? (document.getElementById('manualLotteryName').getAttribute('data-original-ai') || null)
+                    : (currentResult.lottery_name || null),
+                ai_date: isManualInput
+                    ? (document.getElementById('manualDate').getAttribute('data-original-ai') || null)
+                    : (currentResult.lottery_date || null),
+                feedback_type: type
+            };
+
+            // Chỉ thêm correct_* khi đã dò lại thủ công (mới có "kết quả đúng")
+            if (isManualInput) {
+                payload.correct_numbers = currentResult.ticket_numbers?.[0] || null;
+                payload.correct_lottery_name = currentResult.lottery_name || null;
+                payload.correct_date = currentResult.lottery_date || null;
+            }
+
+            fetch('/save_feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        feedbackSection.innerHTML = '<p>✅ Cảm ơn bạn đã đánh giá!</p>';
+                        setTimeout(() => { feedbackSection.style.display = 'none'; }, 2000);
+                    }
+                })
+                .catch(err => console.error('Error saving feedback:', err));
+        }
+    </script>
+</body>
+
+</html>
